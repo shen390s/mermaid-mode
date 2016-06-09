@@ -32,21 +32,31 @@
 
 (defconst mermaid-font-lock-keywords-1
   '(("^[ \t]*\\(graph\\|subgraph\\|end\\|loop\\|alt\\|gantt\\|title\\|section\\|dateFormat\\|sequenceDiagram\\|opt\\|participant\\|note\\|else\\|gitGraph\\|options\\)" . font-lock-keyword-face)
-    ("^[ \t]*graph[ \t]+\\(TD|\\TB\\|BT\\RL\\|LR\\)" . font-lock-keyword-face))
+    ("^[ \t]*graph[ \t]+\\(TD|\\TB\\|BT\\RL\\|LR\\)" . font-lock-keyword-face)
+    ("%%\\(.*$\\)" . font-lock-comment-face)
+    )
   "keyword in mermaid mode"
   )
 
 (defconst mermaid-new-scope-regexp
-  "^[ \t]*\\(loop\\|alt\\|opt\\|subgraph\\|graph\\|sequenceDiagram\\|gantt\\|else\\|gitGraph\\|{\\)\\([ \t]*\\|$\\)"
+  "^[ \t]*\\(loop\\|opt\\|subgraph\\|graph\\|sequenceDiagram\\|gantt\\|gitGraph\\|{\\)\\([ \t]*\\|$\\)"
   "keyword to start a new scope(indent level)")
 
 (defconst mermaid-end-scope-regexp
-  "^[ \t]*\\(end\\|else\\|}\\)\\([ \t]*\\|$\\)"
+  "^[ \t]*\\(end\\|}\\)\\([ \t]*\\|$\\)"
   "keyword for end a scope(maybe also start a new scope)")
 
 (defconst mermaid-section-regexp
   "^[ \t]*\\(section\\)[ \t]+"
   "section keyword")
+
+(defconst mermaid-else-regexp
+  "^[ \t]*\\(else\\)"
+  "else keyword")
+
+(defconst mermaid-alt-regexp
+  "^[ \t]*\\(alt\\)"
+  "alt keyword")
 
 (defun mermaid-output-ext ()
   "get the extendsion of generated file"
@@ -82,10 +92,17 @@
         (find-file-other-window dst-file-name)
       (error "Please compile the it first!\n"))))
 
+(defvar mermaid-debug-enabled t
+  "enable/disable debug")
+
+(defmacro mermaid-debug (fmt &rest args)
+  `(when mermaid-debug-enabled
+     (message ,fmt ,@args)))
+
 (defun mermaid-indent-line ()
   "indent current line in mermaid mode"
   (interactive)
-  ;;(message "line no @ %d\n" (line-number-at-pos))
+  (mermaid-debug "line no @ %d\n" (line-number-at-pos))
   (beginning-of-line)
   (if (bobp)
       (indent-line-to 0)
@@ -93,10 +110,11 @@
       (cond
        ((looking-at mermaid-end-scope-regexp)
         (progn
-          ;;(message "found end scope\n")
+          (mermaid-debug "found end scope\n")
           (save-excursion
             (forward-line -1)
-            (if (looking-at mermaid-new-scope-regexp)
+            (if (or (looking-at mermaid-new-scope-regexp)
+                    (looking-at mermaid-alt-regexp))
                 (setq cur-indent (current-indentation))
               (setq cur-indent (- (current-indentation) default-tab-width)))
             (if (< cur-indent 0)
@@ -104,29 +122,30 @@
        ((looking-at mermaid-section-regexp)
         (let ((found-section nil)
               (need-search t))
-          ;;(message "found section\n")
+          (mermaid-debug "found section\n")
           (save-excursion
             (while need-search
               (forward-line -1)
               (cond
                ((looking-at mermaid-section-regexp)
                 (progn
-                  ;;(message "found section\n")
+                  (mermaid-debug "found section\n")
                   (setq found-section t)
                   (setq cur-indent (current-indentation))
-                  ;;(message "cur-indent %d\n" cur-indent)
+                  (mermaid-debug "cur-indent %d\n" cur-indent)
                   (setq need-search nil)))
-               ((looking-at mermaid-new-scope-regexp)
+               ((or (looking-at mermaid-new-scope-regexp)
+                    (looking-at mermaid-alt-regexp))
                 (progn
-                  ;;(message "found new scope\n")
+                  (mermaid-debug "found new scope\n")
                   (setq cur-indent (+ (current-indentation) default-tab-width))
-                  ;;(message "cur-indent %d\n" cur-indent)
+                  (mermaid-debug "cur-indent %d\n" cur-indent)
                   (setq need-search nil)))
                ((looking-at mermaid-end-scope-regexp)
                 (progn
-                  ;;(message "found end scope\n")
+                  (mermaid-debug "found end scope\n")
                   (setq cur-indent (current-indentation))
-                  ;;(message "cur-indent %d\n" cur-indent)
+                  (mermaid-debug "cur-indent %d\n" cur-indent)
                   (setq need-search nil)))
                ((bobp)
                 (progn
@@ -135,30 +154,57 @@
                (t t))))
           (if (< cur-indent 0)
               (setq cur-indent 0))))
-       (t
+       ((looking-at mermaid-else-regexp)
         (let ((need-search t))
-          ;;(message "normal indent\n")
+          (mermaid-debug "else\n")
+          (save-excursion
+            (while need-search
+              (forward-line -1)
+              (cond
+               ((or (looking-at mermaid-else-regexp)
+                    (looking-at mermaid-alt-regexp))
+                (progn
+                  (mermaid-debug "found matched alt/else\n")
+                  (setq cur-indent (current-indentation))
+                  (mermaid-debug "cur-indent %d\n" cur-indent)
+                  (setq need-search nil)))
+               ((looking-at mermaid-end-scope-regexp)
+                (progn
+                  (mermaid-debug "found end\n")
+                  (setq cur-indent (- (current-indentation) default-tab-width))
+                  (setq need-search nil)))
+               ((bobp)
+                (progn
+                  (setq cur-indent 0)))
+               (t t))))))
+       (t
+        (let ((need-search t)
+              (start-scope (looking-at mermaid-new-scope-regexp)))
+          (mermaid-debug "normal indent\n")
           (save-excursion
             (while need-search
               (forward-line -1)
               (cond
                ((looking-at mermaid-end-scope-regexp)
                 (progn
-                  ;;(message "found end scope\n")
+                  (mermaid-debug "found end scope\n")
                   (setq cur-indent (current-indentation))
-                  ;;(message "cur-indent %d\n" cur-indent)
+                  (mermaid-debug "cur-indent %d\n" cur-indent)
                   (setq need-search nil)))
-                ((looking-at mermaid-new-scope-regexp)
+                ((or (looking-at mermaid-new-scope-regexp)
+                     (looking-at mermaid-alt-regexp))
                  (progn
-                   ;;(message "found begin scope\n")
+                   (mermaid-debug "found begin scope\n")
                    (setq cur-indent (+ (current-indentation) default-tab-width))
-                   ;;(message "cur-indent %d\n" cur-indent)
+                   (mermaid-debug "cur-indent %d\n" cur-indent)
                    (setq need-search nil)))
                 ((looking-at mermaid-section-regexp)
                  (progn
-                   ;;(message "found section \n")
-                   (setq cur-indent (+ (current-indentation) default-tab-width))
-                   ;;(message "cur-indent %d\n" cur-indent)
+                   (mermaid-debug "found section \n")
+                   (if start-scope
+                       (setq cur-indent (current-indentation))
+                     (setq cur-indent (+ (current-indentation) default-tab-width)))
+                   (mermaid-debug "cur-indent %d\n" cur-indent)
                    (setq need-search nil)))
                 ((bobp)
                  (progn
@@ -178,7 +224,8 @@
        '(mermaid-font-lock-keywords-1))
   (set (make-local-variable 'indent-line-function)
        'mermaid-indent-line)
-  (set (make-local-variable 'comment-start) "%")
+  (set (make-local-variable 'comment-start) "%%")
+  (set (make-local-variable 'comment-end) "\n")
   (setq major-mode 'mermaid-mode)
   (setq mode-name "mermaid")
   (run-hooks 'mermaid-mode-hook)
