@@ -94,7 +94,9 @@
         (find-file-other-window dst-file-name)
       (error "Please compile the it first!\n"))))
 
-(defvar mermaid-debug-enabled t
+;; disable debug in default
+;;
+(defvar mermaid-debug-enabled nil
   "enable/disable debug")
 
 (defmacro mermaid-debug (fmt &rest args)
