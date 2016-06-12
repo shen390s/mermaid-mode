@@ -1,6 +1,6 @@
 <h1>Mermaid Mode</h1>
 
-# Introduction of `Mermaid`
+# Introduction of Mermaid
 
     See [mermaid](http://knsv.github.io/mermaid/#mermaid) for introduction and examples of mermaid.  
     
