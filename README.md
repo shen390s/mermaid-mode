@@ -1,8 +1,15 @@
 <h1>Mermaid Mode</h1>
+# Introduction of Mermaid
 
+    See http://knsv.github.io/mermaid/#mermaid for introduction and examples of mermaid.  
+    
 # mermaid-mode
 
-    Emacs major mode to edit mermaid(http://knsv.github.io/mermaid/#mermaid)
+    Emacs major mode to edit mermaid, following features included:
+   
+    - Auto indentation
+    - Keywords highlighting
+    - Compilation and view if document
 
 # Feedback
 
