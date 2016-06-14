@@ -10,10 +10,10 @@
    
     - Auto indentation
     - Keywords highlighting
-    - Compilation and view if document
+    - Compilation and view of document
 
 # Feedback
 
-    Do not hesitate to send me suggestions or pull reqquests.
+    Do not hesitate to send me suggestions or pull requests.
     
     
