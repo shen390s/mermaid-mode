@@ -11,13 +11,16 @@
       (make-local-variable 'compilation-error-screen-columns))
   (setq compilation-error-screen-columns nil))
 
-(defvar mermaid-output-format 'png
+(defvar puppeteer-config-file "c:/Users/Administrator/AppData/Roaming/.emacs.d/mermaid/puppeteer-config.json"
+  "The puppeteer config file to make it work with Chromimum")
+
+(defvar mermaid-output-format 'svg
   "The format of generated file")
 
 (defvar mermaid-verbose nil
   "Show verbose information when run compiler")
 
-(defvar mermaid-compiler "mermaid"
+(defvar mermaid-compiler "mmdc"
   "The compiler used to generate output")
 
 (defvar mermaid-mode-map
@@ -62,21 +65,24 @@
 
 (defun mermaid-output-ext ()
   "get the extendsion of generated file"
-  (if (eq mermaid-output-format 'svg)
-      ".svg"
-    ".png"))
+  (if (eq mermaid-output-format 'png)
+      ".png"
+    ".svg"))
 
 ;;;###autoload
 (defun mermaid-compile ()
   (interactive)
   (let ((cmd (concat mermaid-compiler
-                     (if (eq mermaid-output-format 'svg)
-                         " --svg "
-                       " ")
                      (if mermaid-verbose
                          " --verbose "
                        " ")
-                     (buffer-file-name)))
+                     " -p "
+                     puppeteer-config-file
+                     " -i "
+                     (buffer-file-name)
+                     " -o "
+                     (buffer-file-name)
+                     (mermaid-output-ext)))
         (buf-name "*mermaid compilation")
         (compilation-mode-hook (cons 'mermaid-compilation-mode-hook compilation-mode-hook)))
     (if (fboundp 'compilation-start)
