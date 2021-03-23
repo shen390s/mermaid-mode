@@ -91,8 +91,10 @@
     (setq mermaid-compiler
 	  (let ((mermaid (executable-find "mermaid")))
 	    (if mermaid
-		mermaid
-	      (executable-find "mmdc"))))))
+		"mermaid"
+	      (if (executable-find "mmdc")
+		  "mmdc"
+		"/bin/touch"))))))
 
 (defun run-compiler (compiler)
   (let ((cmd (pcase compiler
