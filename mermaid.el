@@ -1,4 +1,5 @@
 ;; mermaid mode
+(require 'compile)
 
 (defvar mermaid-mode-hook nil
   "initial hook for mermaid mode"
@@ -17,7 +18,7 @@
 (defvar mermaid-verbose nil
   "Show verbose information when run compiler")
 
-(defvar mermaid-compiler "mermaid"
+(defvar mermaid-compiler nil
   "The compiler used to generate output")
 
 (defvar mermaid-mode-map
@@ -66,24 +67,55 @@
       ".svg"
     ".png"))
 
+(defun mk-mermaid-command (file-name)
+  (let ((cmd (format "mermaid %s %s %s"
+		     (if (eq mermaid-output-format 'svg)
+			 "--svg"
+		       "")
+		     (if mermaid-verbose
+			 "--verbose"
+		       "")
+		     file-name)))
+    cmd))
+
+(defun mk-mmdc-command (file-name)
+  (let ((cmd (format "mmdc -i %s -o %s"
+		     file-name
+		     (format "%s.%s"
+			     file-name
+			     mermaid-output-format))))
+    cmd))
+
+(defun get-mermaid-compiler ()
+  (unless mermaid-compiler
+    (setq mermaid-compiler
+	  (let ((mermaid (executable-find "mermaid")))
+	    (if mermaid
+		mermaid
+	      (executable-find "mmdc"))))))
+
+(defun run-compiler (compiler)
+  (let ((cmd (pcase compiler
+	       ('mermaid (mk-mermaid-command (buffer-file-name)))
+	       ('mmdc (mk-mmdc-command (buffer-file-name))))))
+    (let ((buffer-name "*mermaid compilation")
+	  (compilation-mode-hook (cons 'mermaid-compilation-mode-hook
+				       compilation-mode-hook)))
+      (compilation-start cmd nil
+			 #'(lambda (mode-name)
+			     buffer-name)))))
+
 ;;;###autoload
 (defun mermaid-compile ()
   (interactive)
-  (let ((cmd (concat mermaid-compiler
-                     (if (eq mermaid-output-format 'svg)
-                         " --svg "
-                       " ")
-                     (if mermaid-verbose
-                         " --verbose "
-                       " ")
-                     (buffer-file-name)))
-        (buf-name "*mermaid compilation")
-        (compilation-mode-hook (cons 'mermaid-compilation-mode-hook compilation-mode-hook)))
-    (if (fboundp 'compilation-start)
-        (compilation-start cmd nil
-                           #'(lambda (mode-name)
-                               buf-name))
-      (compile-internal cmd "No more errors" buf-name))))
+  (let ((compiler (get-mermaid-compiler)))
+    (cond
+     ((string= compiler "mermaid")
+      (run-compiler 'mermaid))
+     ((string= compiler "mmdc")
+      (run-compiler 'mmdc))
+     (t (message "unknown mermaid compiler %s"
+		 compiler)))))
 
 ;;;###autoload
 (defun mermaid-view ()
@@ -120,7 +152,7 @@
             (if (or (looking-at mermaid-new-scope-regexp)
                     (looking-at mermaid-alt-regexp))
                 (setq cur-indent (current-indentation))
-              (setq cur-indent (- (current-indentation) default-tab-width)))
+              (setq cur-indent (- (current-indentation) tab-width)))
             (if (< cur-indent 0)
                 (setq cur-indent 0)))))
        ((looking-at mermaid-section-regexp)
@@ -142,7 +174,7 @@
                     (looking-at mermaid-alt-regexp))
                 (progn
                   (mermaid-debug "found new scope\n")
-                  (setq cur-indent (+ (current-indentation) default-tab-width))
+                  (setq cur-indent (+ (current-indentation) tab-width))
                   (mermaid-debug "cur-indent %d\n" cur-indent)
                   (setq need-search nil)))
                ((looking-at mermaid-end-scope-regexp)
@@ -175,7 +207,7 @@
                ((looking-at mermaid-end-scope-regexp)
                 (progn
                   (mermaid-debug "found end\n")
-                  (setq cur-indent (- (current-indentation) default-tab-width))
+                  (setq cur-indent (- (current-indentation) tab-width))
                   (setq need-search nil)))
                ((bobp)
                 (progn
@@ -199,7 +231,7 @@
                      (looking-at mermaid-alt-regexp))
                  (progn
                    (mermaid-debug "found begin scope\n")
-                   (setq cur-indent (+ (current-indentation) default-tab-width))
+                   (setq cur-indent (+ (current-indentation) tab-width))
                    (mermaid-debug "cur-indent %d\n" cur-indent)
                    (setq need-search nil)))
                 ((looking-at mermaid-section-regexp)
@@ -207,7 +239,7 @@
                    (mermaid-debug "found section \n")
                    (if start-scope
                        (setq cur-indent (current-indentation))
-                     (setq cur-indent (+ (current-indentation) default-tab-width)))
+                     (setq cur-indent (+ (current-indentation) tab-width)))
                    (mermaid-debug "cur-indent %d\n" cur-indent)
                    (setq need-search nil)))
                 ((bobp)
@@ -232,7 +264,6 @@
   (set (make-local-variable 'comment-end) "")
   (setq major-mode 'mermaid-mode)
   (setq mode-name "mermaid")
-  (run-hooks 'mermaid-mode-hook)
-  )
+  (run-hooks 'mermaid-mode-hook))
 
 (provide 'mermaid-mode)
