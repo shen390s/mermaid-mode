@@ -87,14 +87,16 @@
     cmd))
 
 (defun get-mermaid-compiler ()
-  (unless mermaid-compiler
-    (setq mermaid-compiler
-	  (let ((mermaid (executable-find "mermaid")))
-	    (if mermaid
-		"mermaid"
-	      (if (executable-find "mmdc")
-		  "mmdc"
-		"/bin/touch"))))))
+  (progn
+    (unless mermaid-compiler
+      (setq mermaid-compiler
+	    (let ((mermaid (executable-find "mermaid")))
+	      (if mermaid
+		  "mermaid"
+		(if (executable-find "mmdc")
+		    "mmdc"
+		  "/bin/touch")))))
+    mermaid-compiler))
 
 (defun run-compiler (compiler)
   (let ((cmd (pcase compiler
